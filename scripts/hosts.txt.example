@@ -1,0 +1,7 @@
+# Example hosts file
+# Copy this to hosts.txt and add your actual IPs
+# 
+# Format: One IP per line
+# 192.0.2.1
+# 192.0.2.2
+# 192.0.2.3
