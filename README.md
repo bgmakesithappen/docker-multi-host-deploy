@@ -91,7 +91,7 @@ docker-multi-host-deploy/
 
 ### 1. Clone and Setup
 ```bash
-git clone <your-repo>
+git clone https://github.com/bgmakesithappen/docker-multi-host-deploy.git
 cd docker-multi-host-deploy
 pip3 install -r scripts/requirements.txt
 ```
@@ -106,9 +106,9 @@ terraform apply
 **Output:**
 ```
 host_ips = [
-  "54.226.202.197",
-  "54.196.210.62",
-  "54.167.118.38"
+  "54.x.x.x",
+  "54.x.x.y",
+  "54.x.x.z"
 ]
 ```
 

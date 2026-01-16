@@ -6,9 +6,7 @@ Automated deployment system that provisions cloud infrastructure and deploys con
 
 **Tech Stack:** Terraform, AWS EC2, Docker, Python, SSH
 
-**Impact:** Reduced deployment time from 30 minutes to 2 minutes (93% improvement)
-
-[View on GitHub](https://github.com/your-username/docker-multi-host-deploy) | [Live Demo Video](#)
+**Impact:** Reduced deployment time from 30 minutes to 2 minutes (93% improvement
 
 ---
 
@@ -29,6 +27,8 @@ Built an automated deployment pipeline that:
    - Configures security groups
    - Installs Docker automatically
 
+![TerraformTree](screenshots/tfplan.png)
+
 2. **Deploys Applications** (Python + Docker)
    - Connects via SSH to all servers
    - Transfers application files
@@ -41,7 +41,7 @@ Built an automated deployment pipeline that:
    - Access URLs for verification
 
 **One Command:** `python3 deploy.py`
-
+![PythonDeploy](screenshots/deployment-script-run.png)
 ---
 
 ## Key Features
@@ -67,7 +67,7 @@ Developer Machine
 Host1 Host2 Host3
 (Docker containers running nginx)
 ```
-
+![FileStructure](tree.png)
 ---
 
 ## Technical Highlights
@@ -134,16 +134,8 @@ This project demonstrates skills applicable to:
 
 **Key Insight:** Professional development involves knowing when to seek help, debugging systematically, and building maintainable solutions.
 
----
+--
 
-## View the Project
-
-- 📂 [Source Code on GitHub](https://github.com/your-username/docker-multi-host-deploy)
-- 🎥 [Demo Video (2 min)](link-to-demo)
-- 📖 [Full Documentation](https://github.com/your-username/docker-multi-host-deploy#readme)
-- 📝 [Technical Deep Dive](https://github.com/your-username/docker-multi-host-deploy/blob/main/LEARNINGS.md)
-
----
 
 ## Next Steps
 
