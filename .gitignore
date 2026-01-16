@@ -1,0 +1,47 @@
+# Terraform sensitive files
+*.tfstate
+*.tfstate.*
+*.tfvars
+.terraform/
+.terraform.lock.hcl
+
+# SSH Keys - CRITICAL
+*.pem
+*.key
+id_rsa*
+*.ppk
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+ENV/
+env/
+
+# Environment and secrets
+.env
+.env.local
+*.secret
+
+# Host configuration (contains public IPs)
+scripts/hosts.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Backup files
+*.bak
+*.backup
