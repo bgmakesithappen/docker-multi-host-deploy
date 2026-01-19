@@ -132,7 +132,91 @@ class DeploymentManager:
         self.results.append(result)
         return result
 
-    
+    def rollback_deployment(self, host):
+        """Rollback to previous deployment on a host"""
+        print(f"\n{Fore.YELLOW}{'='*60}")
+        print(f"{Fore.YELLOW}Rolling back deployment on {host}")
+        print(f"{Fore.YELLOW}{'='*60}")
+        
+        client = None
+        try:
+            # Connect
+            print(f"{Fore.YELLOW}→ Connecting to {host}...")
+            client = self.connect_ssh(host)
+            print(f"{Fore.GREEN}✓ Connected")
+            
+            remote_dir = '/home/ubuntu/nginx-service'
+            
+            # Check if backup exists
+            print(f"{Fore.YELLOW}→ Checking for previous version...")
+            stdin, stdout, stderr = client.exec_command(f'test -d {remote_dir}.backup && echo "exists"')
+            backup_exists = stdout.read().decode().strip() == "exists"
+            
+            if not backup_exists:
+                print(f"{Fore.RED}✗ No backup found. Cannot rollback.")
+                return {
+                    'host': host,
+                    'status': 'failed',
+                    'message': 'No backup available'
+                }
+            
+            # Stop current containers
+            print(f"{Fore.YELLOW}→ Stopping current containers...")
+            stdin, stdout, stderr = client.exec_command(
+                f'cd {remote_dir} && docker compose down'
+            )
+            stdout.channel.recv_exit_status()
+            print(f"{Fore.GREEN}✓ Containers stopped")
+            
+            # Restore from backup
+            print(f"{Fore.YELLOW}→ Restoring previous version...")
+            commands = [
+                f'rm -rf {remote_dir}',
+                f'mv {remote_dir}.backup {remote_dir}',
+                f'cd {remote_dir} && docker compose up -d'
+            ]
+            
+            for cmd in commands:
+                stdin, stdout, stderr = client.exec_command(cmd)
+                stdout.channel.recv_exit_status()
+            
+            print(f"{Fore.GREEN}✓ Previous version restored")
+            
+            # Verify
+            print(f"{Fore.YELLOW}→ Verifying rollback...")
+            time.sleep(2)
+            stdin, stdout, stderr = client.exec_command(
+                'curl -s -o /dev/null -w "%{http_code}" http://localhost'
+            )
+            status_code = stdout.read().decode().strip()
+            
+            if status_code == '200':
+                print(f"{Fore.GREEN}✓ Rollback successful!")
+                return {
+                    'host': host,
+                    'status': 'success',
+                    'message': 'Rolled back successfully'
+                }
+            else:
+                print(f"{Fore.RED}✗ Rollback verification failed")
+                return {
+                    'host': host,
+                    'status': 'failed',
+                    'message': f'HTTP returned {status_code}'
+                }
+        
+        except Exception as e:
+            print(f"{Fore.RED}✗ Rollback failed: {e}")
+            return {
+                'host': host,
+                'status': 'failed',
+                'message': str(e)
+            }
+        
+        finally:
+            if client:
+                client.close()
+                
     def print_summary(self):
         """Print deployment summary"""
         print(f"\n{Fore.YELLOW}{'='*60}")

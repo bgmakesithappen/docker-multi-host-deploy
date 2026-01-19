@@ -1,0 +1,11 @@
+# Example variables file
+# Copy this to terraform.tfvars and customize
+
+# SSH key name (will be created if doesn't exist)
+key_name = "docker-deploy-key"
+
+# Number of instances to create
+instance_count = 3
+
+# AWS region
+# region = "us-east-1"
