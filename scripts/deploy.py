@@ -9,10 +9,28 @@ import paramiko
 from pathlib import Path
 from colorama import init, Fore, Style
 import time
+import logging
+from datetime import datetime
 
 # Initialize colorama for cross-platform colored output
 init(autoreset=True)
 
+log_dir = Path(__file__).parent / 'logs'
+log_dir.mkdir(exist_ok=True)
+
+# Setup logging with timestamp in filename
+log_file = log_dir / f'deployment_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_file),
+        logging.StreamHandler()  
+    ]
+)
+
+logger = logging.getLogger(__name__)
+logger.info(f"Logging to: {log_file}")
 class DeploymentManager:
     def __init__(self, key_path, service_path):
         self.key_path = Path(key_path)
@@ -41,6 +59,8 @@ class DeploymentManager:
 
     def deploy_to_host(self, host):
         """Deploy service to a single host"""
+        logger.info(f"=== Starting deployment to {host} ===")
+
         print(f"\n{Fore.CYAN}{'='*60}")
         print(f"{Fore.CYAN}Deploying to {host}")
         print(f"{Fore.CYAN}{'='*60}")
@@ -55,14 +75,27 @@ class DeploymentManager:
             # Step 2: Create remote directory
             remote_dir = '/home/ubuntu/nginx-service'
             print(f"{Fore.YELLOW}→ Creating directory {remote_dir}...")
+            logger.debug(f"Creating remote directory: {remote_dir}")
             stdin, stdout, stderr = client.exec_command(f'mkdir -p {remote_dir}')
             stdout.channel.recv_exit_status()
             print(f"{Fore.GREEN}✓ Directory created")
             
-            # Step 3: Copy files via SFTP
+            # Step 3: Backup existing deployment
+            print(f"{Fore.YELLOW}→ Backing up existing deployment (if any)...")
+            logger.info("Creating backup of existing deployment") 
+            stdin, stdout, stderr = client.exec_command(
+                f'if [ -d {remote_dir} ]; then '
+                f'rm -rf {remote_dir}.backup && '
+                f'cp -r {remote_dir} {remote_dir}.backup; fi'
+            )
+            stdout.channel.recv_exit_status()
+            print(f"{Fore.GREEN}✓ Backup created")
+
+            # Step 4: Copy files via SFTP
             print(f"{Fore.YELLOW}→ Copying files...")
+            logger.info(f"Copying files from {self.service_path} to {host}:{remote_dir}")  # ← ADD
             sftp = client.open_sftp()
-            
+
             local_compose = self.service_path / 'docker-compose.yml'
             sftp.put(str(local_compose), f'{remote_dir}/docker-compose.yml')
             
@@ -75,7 +108,7 @@ class DeploymentManager:
             sftp.close()
             print(f"{Fore.GREEN}✓ Files copied")
             
-            # Step 4: Pull images
+            # Step 5: Pull images
             print(f"{Fore.YELLOW}→ Pulling Docker images...")
             stdin, stdout, stderr = client.exec_command(
                 f'cd {remote_dir} && docker compose pull'
@@ -83,15 +116,16 @@ class DeploymentManager:
             stdout.channel.recv_exit_status()
             print(f"{Fore.GREEN}✓ Images pulled")
             
-            # Step 5: Start containers
+            # Step 6: Start containers
             print(f"{Fore.YELLOW}→ Starting containers...")
             stdin, stdout, stderr = client.exec_command(
                 f'cd {remote_dir} && docker compose up -d'
             )
             stdout.channel.recv_exit_status()
             print(f"{Fore.GREEN}✓ Containers started")
-            
-            # Step 6: Verify deployment
+            logger.info(f"Containers started successfully on {host}")  # ← ADD
+
+            # Step 7: Verify deployment (Health Check)
             print(f"{Fore.YELLOW}→ Verifying deployment...")
             stdin, stdout, stderr = client.exec_command('docker ps --format "{{.Names}}: {{.Status}}"')
             stdout.channel.recv_exit_status()
@@ -106,11 +140,15 @@ class DeploymentManager:
             
             if status_code == '200':
                 print(f"{Fore.GREEN}✓ HTTP health check passed (200 OK)")
-                print(f"{Fore.GREEN}✓ Deployment successful!")
                 print(f"{Fore.WHITE}   Access at: http://{host}")
+                logger.info(f"Health check passed for {host} (HTTP 200)")
             else:
                 print(f"{Fore.YELLOW}⚠ HTTP returned {status_code}")
+                logger.warning(f"Health check returned {status_code} for {host}")
             
+            print(f"{Fore.GREEN}✓ Deployment to {host} completed successfully!")
+            logger.info(f"=== Deployment to {host} completed successfully ===") 
+
             result = {
                 'host': host,
                 'status': 'success',
@@ -119,6 +157,7 @@ class DeploymentManager:
             
         except Exception as e:
             print(f"{Fore.RED}✗ Deployment failed: {e}")
+            logger.error(f"Deployment failed on {host}: {e}", exc_info=True)
             result = {
                 'host': host,
                 'status': 'failed',
@@ -128,7 +167,8 @@ class DeploymentManager:
         finally:
             if client:
                 client.close()
-        
+                logger.debug(f"SSH connection to {host} closed")
+
         self.results.append(result)
         return result
 
@@ -216,7 +256,7 @@ class DeploymentManager:
         finally:
             if client:
                 client.close()
-                
+
     def print_summary(self):
         """Print deployment summary"""
         print(f"\n{Fore.YELLOW}{'='*60}")
