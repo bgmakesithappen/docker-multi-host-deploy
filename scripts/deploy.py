@@ -384,9 +384,13 @@ def main():
     rollback = '--rollback' in sys.argv
 
     # Create deployment manager
-    manager = DeploymentManager(key_path, service_path, config))
+    manager = DeploymentManager(key_path, service_path, config)
     
     # Load hosts
+    # Check for custom hosts file
+    for arg in sys.argv:
+        if arg.startswith('--hosts='):
+            hosts_file = Path(arg.split('=')[1])
     hosts = manager.load_hosts(hosts_file)
 
     if rollback:
