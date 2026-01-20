@@ -1,0 +1,15 @@
+2026-01-19 20:07:56,159 - INFO - Logging to: /Users/bengregory/Projects/docker-multi-host-deploy/scripts/logs/deployment_20260119_200756.log
+2026-01-19 20:07:56,161 - INFO - Loaded configuration from /Users/bengregory/Projects/docker-multi-host-deploy/config.yaml
+2026-01-19 20:07:56,161 - INFO - Initialized DeploymentManager with timeout=300s
+2026-01-19 20:07:56,162 - INFO - === Starting deployment to 54.90.156.86 ===
+2026-01-19 20:09:11,399 - ERROR - Deployment failed on 54.90.156.86: [Errno 60] Operation timed out
+Traceback (most recent call last):
+  File "/Users/bengregory/Projects/docker-multi-host-deploy/scripts/deploy.py", line 142, in deploy_to_host
+    client = self.connect_ssh(host)
+  File "/Users/bengregory/Projects/docker-multi-host-deploy/scripts/deploy.py", line 101, in connect_ssh
+    client.connect(hostname=host, username=username, pkey=key, timeout=self.timeout)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/paramiko/client.py", line 384, in connect
+    sock.connect(addr)
+    ~~~~~~~~~~~~^^^^^^
+TimeoutError: [Errno 60] Operation timed out

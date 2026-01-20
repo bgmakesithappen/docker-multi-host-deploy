@@ -1,0 +1,12 @@
+2026-01-20 09:43:52,552 - INFO - Logging to: /Users/bengregory/Projects/docker-multi-host-deploy/scripts/logs/deployment_20260120_094352.log
+2026-01-20 09:43:52,555 - INFO - Loaded configuration from /Users/bengregory/Projects/docker-multi-host-deploy/config.yaml
+2026-01-20 09:43:52,555 - INFO - Initialized DeploymentManager with timeout=300s
+2026-01-20 09:43:52,555 - INFO - === Starting deployment to 44.221.82.240 ===
+2026-01-20 09:43:52,908 - INFO - Connected (version 2.0, client OpenSSH_8.9p1)
+2026-01-20 09:43:53,289 - INFO - Authentication (publickey) successful!
+2026-01-20 09:43:53,455 - INFO - Creating backup of existing deployment
+2026-01-20 09:43:53,663 - INFO - Copying files from /Users/bengregory/Projects/docker-multi-host-deploy/services/nginx to 44.221.82.240:/home/ubuntu/nginx-service
+2026-01-20 09:43:53,928 - INFO - [chan 2] Opened sftp connection (server version 3)
+2026-01-20 09:43:54,414 - INFO - [chan 2] sftp session closed.
+2026-01-20 09:43:57,299 - INFO - Containers started successfully on 44.221.82.240
+2026-01-20 09:44:02,642 - INFO - Health check passed for 44.221.82.240 on attempt 1

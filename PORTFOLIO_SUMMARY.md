@@ -147,5 +147,62 @@ Future enhancements could include:
 - Multi-service application support
 
 ---
+## Recent Enhancements
+
+### Configuration Management
+- **YAML-based configuration:** Externalized deployment settings to `config.yaml` for easy customization
+- **Configurable timeouts:** SSH connection timeout, health check retries, and retry delays all adjustable
+- **Optional backup creation:** Toggle backup behavior via configuration flag
+- **Custom config files:** Support for environment-specific configs via `--config` flag
+
+### Deployment Reliability
+- **Health check retries:** Configurable retry mechanism with exponential backoff
+- **Automated backup:** Creates backup before deployment for rollback capability
+- **Rollback functionality:** One-command rollback to previous deployment via `--rollback` flag
+- **SFTP error handling:** Graceful handling of existing directories during file transfer
+
+### Observability & Debugging
+- **Structured logging:** Timestamped logs saved to `scripts/logs/` directory
+- **Dual output:** Logs written to both file and console simultaneously
+- **Debug information:** Container status verification before health checks
+- **Actionable error messages:** Troubleshooting steps displayed on deployment failures
+
+### Developer Experience
+- **Troubleshooting guide:** Automatic display of debug commands when deployment fails
+- **Log retention:** All deployments logged with timestamps for audit trail
+- **Config validation:** Graceful fallback to defaults if config file missing
+- **Flexible host targeting:** Deploy to specific hosts via `--hosts` flag
+
+---
+
+## Configuration Example
+```yaml
+deployment:
+  timeout: 300              # SSH connection timeout
+  health_check_retries: 3   # Number of health check attempts
+  retry_delay: 5            # Seconds between retries
+  remote_dir: /home/ubuntu/nginx-service
+
+options:
+  create_backup: true       # Backup before deployment
+  rollback_on_failure: false
+```
+
+---
+
+## Updated Usage
+```bash
+# Deploy with custom configuration
+python3 scripts/deploy.py --config=config-prod.yaml
+
+# Deploy to specific hosts only
+python3 scripts/deploy.py --hosts=scripts/hosts-prod.txt
+
+# Rollback to previous version
+python3 scripts/deploy.py --rollback
+
+# View deployment logs
+cat scripts/logs/deployment_*.log
+```
 
 **Built as a learning project to demonstrate DevOps automation capabilities.**

@@ -1,0 +1,37 @@
+2026-01-19 17:31:05,290 - INFO - Logging to: /Users/bengregory/Projects/docker-multi-host-deploy/scripts/logs/deployment_20260119_173105.log
+2026-01-19 17:31:05,292 - INFO - === Starting deployment to 54.226.202.197 ===
+2026-01-19 17:31:15,596 - ERROR - Deployment failed on 54.226.202.197: timed out
+Traceback (most recent call last):
+  File "/Users/bengregory/Projects/docker-multi-host-deploy/scripts/deploy.py", line 72, in deploy_to_host
+    client = self.connect_ssh(host)
+  File "/Users/bengregory/Projects/docker-multi-host-deploy/scripts/deploy.py", line 52, in connect_ssh
+    client.connect(hostname=host, username=username, pkey=key, timeout=10)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/paramiko/client.py", line 384, in connect
+    sock.connect(addr)
+    ~~~~~~~~~~~~^^^^^^
+TimeoutError: timed out
+2026-01-19 17:31:15,601 - INFO - === Starting deployment to 54.196.210.62 ===
+2026-01-19 17:31:25,837 - ERROR - Deployment failed on 54.196.210.62: timed out
+Traceback (most recent call last):
+  File "/Users/bengregory/Projects/docker-multi-host-deploy/scripts/deploy.py", line 72, in deploy_to_host
+    client = self.connect_ssh(host)
+  File "/Users/bengregory/Projects/docker-multi-host-deploy/scripts/deploy.py", line 52, in connect_ssh
+    client.connect(hostname=host, username=username, pkey=key, timeout=10)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/paramiko/client.py", line 384, in connect
+    sock.connect(addr)
+    ~~~~~~~~~~~~^^^^^^
+TimeoutError: timed out
+2026-01-19 17:31:25,839 - INFO - === Starting deployment to 54.167.118.38 ===
+2026-01-19 17:31:36,075 - ERROR - Deployment failed on 54.167.118.38: timed out
+Traceback (most recent call last):
+  File "/Users/bengregory/Projects/docker-multi-host-deploy/scripts/deploy.py", line 72, in deploy_to_host
+    client = self.connect_ssh(host)
+  File "/Users/bengregory/Projects/docker-multi-host-deploy/scripts/deploy.py", line 52, in connect_ssh
+    client.connect(hostname=host, username=username, pkey=key, timeout=10)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/paramiko/client.py", line 384, in connect
+    sock.connect(addr)
+    ~~~~~~~~~~~~^^^^^^
+TimeoutError: timed out
