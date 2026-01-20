@@ -67,7 +67,7 @@ Developer Machine
 Host1 Host2 Host3
 (Docker containers running nginx)
 ```
-![FileStructure](tree.png)
+![FileStructure](screenshots/tree.png)
 ---
 
 ## Technical Highlights
