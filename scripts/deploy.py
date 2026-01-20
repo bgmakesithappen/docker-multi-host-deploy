@@ -4,6 +4,7 @@ Multi-host Docker deployment script
 Automates deployment of Docker Compose services across multiple servers
 """
 
+from http import client
 import sys
 #from flask import config  #obselete import post config yaml usage; leaving for reference and testing
 import paramiko
@@ -66,16 +67,13 @@ def load_config(config_path='config.yaml'):
     logger.info(f"Loaded configuration from {config_file}")
     return config
 
-# Load config
-CONFIG = load_config()
-
 class DeploymentManager:
     def __init__(self, key_path, service_path, config, dry_run=False):
         self.key_path = Path(key_path)
         self.service_path = Path(service_path)
         self.config = config
         self.results = []
-        self.dry_run = dry_run
+        # self.dry_run = dry_run ## Not used currently but can be implemented for future features  
         self.timeout = config['deployment']['timeout']
         self.remote_dir = config['deployment']['remote_dir']
         self.health_retries = config['deployment']['health_check_retries']
@@ -100,7 +98,7 @@ class DeploymentManager:
             client = paramiko.SSHClient()
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             key = paramiko.RSAKey.from_private_key_file(str(self.key_path))
-            client.connect(hostname=host, username=username, pkey=key, timeouts=self.timeout)
+            client.connect(hostname=host, username=username, pkey=key, timeout=self.timeout)
 
             return client
         
@@ -109,7 +107,28 @@ class DeploymentManager:
             raise
 
     def deploy_to_host(self, host):
-        """Deploy service to a single host"""
+        """
+        Deploy service to a single host via SSH.
+        
+        Performs the following steps:
+        1. Establishes SSH connection
+        2. Creates remote directory structure
+        3. Backs up existing deployment (if enabled)
+        4. Transfers files via SFTP
+        5. Pulls Docker images
+        6. Starts containers
+        7. Performs health checks with retries
+        
+        Args:
+            host (str): IP address or hostname of target server
+            
+        Returns:
+            dict: Deployment result with keys: host, status, message
+            
+        Raises:
+            Exception: If deployment fails (caught and returned as failed result)
+        """
+
         logger.info(f"=== Starting deployment to {host} ===")
 
         print(f"\n{Fore.CYAN}{'='*60}")
@@ -147,7 +166,7 @@ class DeploymentManager:
 
             # Step 4: Copy files via SFTP
             print(f"{Fore.YELLOW}→ Copying files...")
-            logger.info(f"Copying files from {self.service_path} to {host}:{remote_dir}")  # ← ADD
+            logger.info(f"Copying files from {self.service_path} to {host}:{remote_dir}")  
             sftp = client.open_sftp()
 
             local_compose = self.service_path / 'docker-compose.yml'
@@ -180,7 +199,17 @@ class DeploymentManager:
             )
             stdout.channel.recv_exit_status()
             print(f"{Fore.GREEN}✓ Containers started")
-            logger.info(f"Containers started successfully on {host}")  # ← ADD
+            logger.info(f"Containers started successfully on {host}")  
+
+            # Show running containers
+            print(f"{Fore.YELLOW}→ Checking container status...")
+            stdin, stdout, stderr = client.exec_command('docker ps --format "{{.Names}}: {{.Status}}"')
+            stdout.channel.recv_exit_status()
+            output = stdout.read().decode().strip()
+            print(f"{Fore.CYAN}   Running containers:")
+            for line in output.split('\n'):
+                if line:  # Only print non-empty lines
+                    print(f"{Fore.CYAN}   - {line}")
 
             # Step 7: Verify deployment (Health Check)
             for attempt in range(self.health_retries):
@@ -197,23 +226,11 @@ class DeploymentManager:
                     print(f"{Fore.YELLOW}⚠ Attempt {attempt + 1}/{self.health_retries} returned {status_code}, retrying...")
                     logger.warning(f"Health check attempt {attempt + 1} failed with {status_code}")
                 else:
-                    print(f"{Fore.RED}✗ All health checks failed")
-                    logger.error(f"All {self.health_retries} health check attempts failed")
-            
-            time.sleep(2)
-            stdin, stdout, stderr = client.exec_command('curl -s -o /dev/null -w "%{http_code}" http://localhost')
-            status_code = stdout.read().decode().strip()
-            
-            if status_code == '200':
-                print(f"{Fore.GREEN}✓ HTTP health check passed (200 OK)")
-                print(f"{Fore.WHITE}   Access at: http://{host}")
-                logger.info(f"Health check passed for {host} (HTTP 200)")
-            else:
-                print(f"{Fore.YELLOW}⚠ HTTP returned {status_code}")
-                logger.warning(f"Health check returned {status_code} for {host}")
-            
-            print(f"{Fore.GREEN}✓ Deployment to {host} completed successfully!")
-            logger.info(f"=== Deployment to {host} completed successfully ===") 
+                    error_msg = f"Health check failed after {self.health_retries} attempts (status: {status_code})"
+                    print(f"{Fore.RED}✗ {error_msg}")
+                    logger.error(error_msg)
+                    raise Exception(error_msg) 
+
 
             result = {
                 'host': host,
@@ -223,6 +240,18 @@ class DeploymentManager:
             
         except Exception as e:
             print(f"{Fore.RED}✗ Deployment failed: {e}")
+            print(f"\n{Fore.YELLOW}{'─'*60}")
+            print(f"{Fore.YELLOW}TROUBLESHOOTING STEPS:")
+            print(f"{Fore.YELLOW}{'─'*60}")
+            print(f"{Fore.WHITE}1. Check SSH connectivity:")
+            print(f"{Fore.CYAN}   ssh -i terraform/deploy-key.pem ubuntu@{host}")
+            print(f"{Fore.WHITE}2. Check deployment logs:")
+            print(f"{Fore.CYAN}   cat scripts/logs/deployment_*.log | tail -50")
+            print(f"{Fore.WHITE}3. Check Docker on remote host:")
+            print(f"{Fore.CYAN}   ssh -i terraform/deploy-key.pem ubuntu@{host} 'docker ps'")
+            print(f"{Fore.WHITE}4. Rollback if needed:")
+            print(f"{Fore.CYAN}   python3 scripts/deploy.py --rollback")
+            print(f"{Fore.YELLOW}{'─'*60}\n")
             logger.error(f"Deployment failed on {host}: {e}", exc_info=True)
             result = {
                 'host': host,
@@ -355,7 +384,7 @@ def main():
     rollback = '--rollback' in sys.argv
 
     # Create deployment manager
-    manager = DeploymentManager(key_path, service_path, config, dry_run=dry_run)
+    manager = DeploymentManager(key_path, service_path, config))
     
     # Load hosts
     hosts = manager.load_hosts(hosts_file)
