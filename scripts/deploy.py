@@ -5,12 +5,14 @@ Automates deployment of Docker Compose services across multiple servers
 """
 
 import sys
+#from flask import config  #obselete import post config yaml usage; leaving for reference and testing
 import paramiko
 from pathlib import Path
 from colorama import init, Fore, Style
 import time
 import logging
 from datetime import datetime
+import yaml
 
 # Initialize colorama for cross-platform colored output
 init(autoreset=True)
@@ -31,12 +33,61 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 logger.info(f"Logging to: {log_file}")
+
+def load_config(config_path='config.yaml'):
+    """Load configuration from YAML file"""
+    config_file = Path(__file__).parent.parent / config_path
+    
+    if not config_file.exists():
+        logger.warning(f"Config file not found at {config_file}, using defaults")
+        return {
+            'deployment': {
+                'timeout': 300,
+                'health_check_retries': 3,
+                'retry_delay': 5,
+                'remote_dir': '/home/ubuntu/nginx-service'
+            },
+            'services': [{
+                'name': 'nginx',
+                'path': 'services/nginx',
+                'port': 80,
+                'health_endpoint': '/'
+            }],
+            'logging': {'level': 'INFO'},
+            'options': {
+                'create_backup': True,
+                'rollback_on_failure': False
+            }
+        }
+    
+    with open(config_file, 'r') as f:
+        config = yaml.safe_load(f)
+    
+    logger.info(f"Loaded configuration from {config_file}")
+    return config
+
+# Load config
+CONFIG = load_config()
+
 class DeploymentManager:
-    def __init__(self, key_path, service_path):
+    def __init__(self, key_path, service_path, config, dry_run=False):
         self.key_path = Path(key_path)
         self.service_path = Path(service_path)
+        self.config = config
         self.results = []
-        
+        self.dry_run = dry_run
+        self.timeout = config['deployment']['timeout']
+        self.remote_dir = config['deployment']['remote_dir']
+        self.health_retries = config['deployment']['health_check_retries']
+        self.retry_delay = config['deployment']['retry_delay']
+        self.create_backup = config['options']['create_backup']
+
+        if dry_run:
+            print(f"{Fore.YELLOW}⚠ DRY RUN MODE - No changes will be made")
+            logger.info("Running in DRY RUN mode")
+    
+        logger.info(f"Initialized DeploymentManager with timeout={self.timeout}s")        
+    
     def load_hosts(self, hosts_file):
         """Load host list from file"""
         with open(hosts_file, 'r') as f:
@@ -47,9 +98,9 @@ class DeploymentManager:
         """Establish SSH connection to host"""
         try:
             client = paramiko.SSHClient()
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy)
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             key = paramiko.RSAKey.from_private_key_file(str(self.key_path))
-            client.connect(hostname=host, username=username, pkey=key, timeout=10)
+            client.connect(hostname=host, username=username, pkey=key, timeouts=self.timeout)
 
             return client
         
@@ -73,7 +124,7 @@ class DeploymentManager:
             print(f"{Fore.GREEN}✓ Connected")
             
             # Step 2: Create remote directory
-            remote_dir = '/home/ubuntu/nginx-service'
+            remote_dir = self.remote_dir
             print(f"{Fore.YELLOW}→ Creating directory {remote_dir}...")
             logger.debug(f"Creating remote directory: {remote_dir}")
             stdin, stdout, stderr = client.exec_command(f'mkdir -p {remote_dir}')
@@ -81,15 +132,18 @@ class DeploymentManager:
             print(f"{Fore.GREEN}✓ Directory created")
             
             # Step 3: Backup existing deployment
-            print(f"{Fore.YELLOW}→ Backing up existing deployment (if any)...")
-            logger.info("Creating backup of existing deployment") 
-            stdin, stdout, stderr = client.exec_command(
-                f'if [ -d {remote_dir} ]; then '
-                f'rm -rf {remote_dir}.backup && '
-                f'cp -r {remote_dir} {remote_dir}.backup; fi'
-            )
-            stdout.channel.recv_exit_status()
-            print(f"{Fore.GREEN}✓ Backup created")
+            if self.create_backup:
+                print(f"{Fore.YELLOW}→ Backing up existing deployment (if any)...")
+                logger.info("Creating backup of existing deployment") 
+                stdin, stdout, stderr = client.exec_command(
+                    f'if [ -d {remote_dir} ]; then '
+                    f'rm -rf {remote_dir}.backup && '
+                    f'cp -r {remote_dir} {remote_dir}.backup; fi'
+                )
+                stdout.channel.recv_exit_status()
+                print(f"{Fore.GREEN}✓ Backup created")
+            else:
+                logger.info("Backup disabled in config, skipping")
 
             # Step 4: Copy files via SFTP
             print(f"{Fore.YELLOW}→ Copying files...")
@@ -100,7 +154,10 @@ class DeploymentManager:
             sftp.put(str(local_compose), f'{remote_dir}/docker-compose.yml')
             
             local_html = self.service_path / 'html'
-            sftp.mkdir(f'{remote_dir}/html')
+            try:
+                sftp.mkdir(f'{remote_dir}/html')
+            except:
+                pass 
             for html_file in local_html.iterdir():
                 if html_file.is_file():
                     sftp.put(str(html_file), f'{remote_dir}/html/{html_file.name}')
@@ -275,8 +332,21 @@ def main():
     service_path = Path(__file__).parent.parent / 'services' / 'nginx'
     hosts_file = Path(__file__).parent / 'hosts.txt'
     
+
+    # Load configuration
+    config_file = 'config.yaml'
+    for arg in sys.argv:
+        if arg.startswith('--config='):
+            config_file = arg.split('=')[1]
+
+    config = load_config(config_file)
+
+    # Check for flags
+    dry_run = '--dry-run' in sys.argv
+    rollback = '--rollback' in sys.argv
+
     # Create deployment manager
-    manager = DeploymentManager(key_path, service_path)
+    manager = DeploymentManager(key_path, service_path, config, dry_run=dry_run)
     
     # Load hosts
     hosts = manager.load_hosts(hosts_file)
