@@ -183,13 +183,22 @@ class DeploymentManager:
             logger.info(f"Containers started successfully on {host}")  # ← ADD
 
             # Step 7: Verify deployment (Health Check)
-            print(f"{Fore.YELLOW}→ Verifying deployment...")
-            stdin, stdout, stderr = client.exec_command('docker ps --format "{{.Names}}: {{.Status}}"')
-            stdout.channel.recv_exit_status()
-            output = stdout.read().decode().strip()
-            print(f"{Fore.CYAN}   Running containers:")
-            for line in output.split('\n'):
-                print(f"{Fore.CYAN}   - {line}")
+            for attempt in range(self.health_retries):
+                time.sleep(self.retry_delay)
+                stdin, stdout, stderr = client.exec_command('curl -s -o /dev/null -w "%{http_code}" http://localhost')
+                status_code = stdout.read().decode().strip()
+                
+                if status_code == '200':
+                    print(f"{Fore.GREEN}✓ HTTP health check passed (200 OK)")
+                    print(f"{Fore.WHITE}   Access at: http://{host}")
+                    logger.info(f"Health check passed for {host} on attempt {attempt + 1}")
+                    break
+                elif attempt < self.health_retries - 1:
+                    print(f"{Fore.YELLOW}⚠ Attempt {attempt + 1}/{self.health_retries} returned {status_code}, retrying...")
+                    logger.warning(f"Health check attempt {attempt + 1} failed with {status_code}")
+                else:
+                    print(f"{Fore.RED}✗ All health checks failed")
+                    logger.error(f"All {self.health_retries} health check attempts failed")
             
             time.sleep(2)
             stdin, stdout, stderr = client.exec_command('curl -s -o /dev/null -w "%{http_code}" http://localhost')
@@ -242,7 +251,7 @@ class DeploymentManager:
             client = self.connect_ssh(host)
             print(f"{Fore.GREEN}✓ Connected")
             
-            remote_dir = '/home/ubuntu/nginx-service'
+            remote_dir = self.remote_dir
             
             # Check if backup exists
             print(f"{Fore.YELLOW}→ Checking for previous version...")
@@ -350,6 +359,18 @@ def main():
     
     # Load hosts
     hosts = manager.load_hosts(hosts_file)
+
+    if rollback:
+        print(f"{Fore.MAGENTA}{'='*60}")
+        print(f"{Fore.MAGENTA}Docker Multi-Host ROLLBACK Script")
+        print(f"{Fore.MAGENTA}{'='*60}")
+        print(f"\n{Fore.WHITE}Rolling back {len(hosts)} hosts...")
+        
+        for host in hosts:
+            manager.rollback_deployment(host)
+        
+        manager.print_summary()
+        return  # Exit function - don't continue to deployment
     
     print(f"{Fore.MAGENTA}{'='*60}")
     print(f"{Fore.MAGENTA}Docker Multi-Host Deployment Script")
